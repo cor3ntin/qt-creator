@@ -10,6 +10,7 @@ Project {
         "flamegraph/flamegraph.qbs",
         "glsl/glsl.qbs",
         "languageutils/languageutils.qbs",
+        "language-server-protocol/language-server-protocol.qbs",
         "modelinglib/modelinglib.qbs",
         "qmleditorwidgets/qmleditorwidgets.qbs",
         "qmljs/qmljs.qbs",
