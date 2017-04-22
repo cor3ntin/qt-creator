@@ -4,6 +4,8 @@
 #include <QUrl>
 #include <QVector>
 
+#include <experimental/optional>
+
 namespace LSP {
 
 
@@ -18,7 +20,8 @@ namespace LSP {
     }
 
 
-
+template <typename T>
+using Optional = std::experimental::optional<T>;
 
 struct Message {
     virtual ~Message() = default;
@@ -27,11 +30,11 @@ struct Message {
 
 struct RequestMessage : public Message {
     QVariant id;
-    virtual const QByteArray & method() const;
+    virtual const QByteArray & method() const = 0;
 };
 
 struct NotificationMessage : public Message {
-    virtual const QByteArray & method() const;
+    virtual const QByteArray & method() const = 0;
 };
 
 struct ResponseError {
@@ -56,25 +59,16 @@ private:
 
 
 struct Position {
-    Position(quint32 line, quint32 characters);
-
     quint32 line;
     quint32 character;
 };
 
 struct Range {
-    Range(const Position &start, const Position & end);
-    Range(Position &&start, Position && end);
-
     Position start;
     Position end;
 };
 
 struct Location {
-
-    Location(const QUrl & url, const Range & range);
-    Location(QUrl && url, Range && range);
-
     QUrl location;
     Range range;
 };
@@ -89,10 +83,11 @@ struct Diagnostic {
 
 
     Range range;
-    QVariant code;
-    QString source;
     QString message;
-    Severity severity;
+
+    Optional<QVariant> code;
+    Optional<QString> source;
+    Optional<Severity> severity;
 };
 
 struct TextDocumentIdentifier {
@@ -133,14 +128,14 @@ struct TextDocumentPositionParams {
 };
 
 struct DocumentFilter {
-    QByteArray language;
-    QByteArray scheme;
-    QString patter;
+    Optional<QByteArray> language;
+    Optional<QByteArray> scheme;
+    Optional<QString> pattern;
 };
 
 struct TextDocumentContentChangeEvent {
-    Range range;
-    quint32 rangeLength;
+    Optional<Range> range;
+    Optional<quint32> rangeLength;
     QString text;
 };
 
@@ -154,14 +149,15 @@ struct CompletionItem {
     QString sortText;
     QString filterText;
     QString insertText;
-    TextEdit textEdit;
+    Optional<TextEdit> textEdit;
     QVector<TextEdit> additionalTextEdits;
     QVariant data;
 
     enum InsertTextFormat {
         FormatPlainText = 1,
         FormatSnippet = 2
-    } insertTextFormat;
+    };
+    Optional<InsertTextFormat> insertTextFormat;
 
 
     enum Kind {
@@ -183,7 +179,8 @@ struct CompletionItem {
         Color = 16,
         File = 17,
         Reference = 18,
-    } kind;
+    };
+    Optional<Kind> kind;
 };
 
 struct CompletionList {
@@ -317,7 +314,7 @@ struct WillSaveTextDocumentRequest : public RequestMessage {
 struct DidSaveTextDocumentNotification : public RequestMessage {
     LSP_MESSAGE
     TextDocumentIdentifier textDocument;
-    QString text;
+    Optional<QString> text;
 };
 
 /* C -> S */
@@ -363,18 +360,215 @@ struct CompletionItemResolveRequest : public RequestMessage {
     CompletionItem item;
 };
 
+/* C -> S */
+struct HoverRequest : public RequestMessage {
+    LSP_MESSAGE
+};
 
-LSP_MESSAGE_IMPL(CancelMessage, "$/cancelRequest");
+
+struct MarkedString {
+    QString str;
+    QString language;
+};
+
+struct Hover {
+    QVector<MarkedString> content;
+    Optional<Range> range;
+};
+
+/* C -> S */
+struct SignatureHelpRequest : public RequestMessage {
+    LSP_MESSAGE
+    TextDocumentPositionParams params;
+};
+
+struct ParameterInformation {
+    QString label;
+    QString documentation;
+};
+
+struct SignatureInformation {
+    QString label;
+    QString documentation;
+    Optional<QVector<ParameterInformation>> parameters;
+};
+
+struct SignatureHelp {
+    Optional<quint16> activeSignature;
+    Optional<quint8> activeParameter;
+    QVector<SignatureInformation> signatures;
+};
+
+struct ReferenceContext {
+    bool includeDeclaration;
+};
+
+struct ReferenceParams : public TextDocumentPositionParams {
+    ReferenceContext context;
+};
+
+/* C -> S */
+struct GotoDefinitionRequest : public RequestMessage {
+    LSP_MESSAGE
+    ReferenceParams params;
+};
+
+/* C -> S */
+struct DocumentHighlightRequest : public RequestMessage {
+    LSP_MESSAGE
+    TextDocumentPositionParams params;
+};
+
+struct DocumentHighlight {
+    enum Kind {
+        Text  = 1,
+        Read  = 2,
+        Write = 3,
+    };
+    Range range;
+    Optional<Kind> kind;
+};
+
+struct DocumentSymbolParams {
+    TextDocumentIdentifier textDocument;
+};
+
+struct DocumentSymbolsRequest : public RequestMessage {
+    LSP_MESSAGE
+    DocumentSymbolParams params;
+};
+
+struct SymbolInformation {
+    QString name;
+    Location location;
+    QString containerName;
+
+    enum SymbolKind {
+        File = 1,
+        Module = 2,
+        Namespace = 3,
+        Package = 4,
+        Class = 5,
+        Method = 6,
+        Property = 7,
+        Field = 8,
+        Constructor = 9,
+        Enum = 10,
+        Interface = 11,
+        Function = 12,
+        Variable = 13,
+        Constant = 14,
+        String = 15,
+        Number = 16,
+        Boolean = 17,
+        Array = 18,
+    } kind;
+};
+
+
+struct WorkspaceSymbolParams {
+    QString query;
+};
+
+/* C -> S */
+struct WorkspaceSymbolsRequest : public RequestMessage {
+    LSP_MESSAGE
+    DocumentSymbolParams params;
+};
+
+
+//TODO : code lens
+
+//TODO : Links
+
+
+struct FormattingOptions {
+    quint8 tabSize;
+    bool insertSpaces;
+};
+
+struct DocumentFormattingParams {
+    TextDocumentIdentifier textDocuments;
+    FormattingOptions options;
+};
+
+struct DocumentRangeFormattingParams : public DocumentFormattingParams {
+    Range range;
+};
+
+struct DocumentOnTypeFormattingParams : public DocumentFormattingParams {
+    Position pos;
+    QChar ch;
+};
+
+
+/* C -> S */
+struct DocumentFormattingRequest : public RequestMessage {
+    LSP_MESSAGE
+    DocumentFormattingParams params;
+};
+
+
+
+/* C -> S */
+struct DocumentRangeFormattingRequest : public RequestMessage {
+    LSP_MESSAGE
+    DocumentRangeFormattingParams params;
+};
+
+/* C -> S */
+struct DocumentOnTypeFormattingRequest : public RequestMessage {
+    LSP_MESSAGE
+    DocumentOnTypeFormattingParams params;
+};
+
+
+struct RenameParams {
+    TextDocumentIdentifier textDocument;
+    Position position;
+    QString newName;
+};
+
+/* C -> S */
+struct RenameRequest : public RequestMessage {
+    LSP_MESSAGE
+    RenameParams params;
+};
+
+
+// TODO Execute commands
+
+
+struct ApplyWorkspaceEditParams {
+    WorkspaceEdit edit;
+};
+
+/* S -> C */
+struct WorkspaceEditRequest : public RequestMessage {
+    LSP_MESSAGE
+    ApplyWorkspaceEditParams edit;
+};
+
+struct ApplyWorkspaceEditResponse {
+    bool applied;
+};
+
 LSP_MESSAGE_IMPL(InitializeRequest, "initialize")
 LSP_MESSAGE_IMPL(InitializedMessage, "initialized")
 LSP_MESSAGE_IMPL(ShutdownRequest, "shutdown")
 LSP_MESSAGE_IMPL(ExitMessage, "exit")
+
+
+LSP_MESSAGE_IMPL(CancelMessage, "$/cancelRequest")
+
 LSP_MESSAGE_IMPL(ShowMessageNotification, "window/showMessage")
 LSP_MESSAGE_IMPL(ShowMessageRequest, "window/showMessageRequest")
 LSP_MESSAGE_IMPL(ShowLogNotification, "window/logMessage")
 
 
 LSP_MESSAGE_IMPL(DidChangeConfigurationNotification, "workspace/didChangeConfiguration")
+LSP_MESSAGE_IMPL(DidChangeWatchedFilesNotification, "workspace/didChangeWatchedFiles")
+
 LSP_MESSAGE_IMPL(DidOpenTextDocumentNotification, "textDocument/didOpen")
 LSP_MESSAGE_IMPL(DidChangeTextDocumentNotification, "textDocument/didChange")
 LSP_MESSAGE_IMPL(WillSaveTextDocumentNotification, "textDocument/willSave")
@@ -383,12 +577,21 @@ LSP_MESSAGE_IMPL(DidSaveTextDocumentNotification, "textDocument/didSave")
 LSP_MESSAGE_IMPL(DidCloseTextDocumentNotification, "textDocument/didClose")
 
 
-LSP_MESSAGE_IMPL(DidChangeWatchedFilesNotification, "workspace/didChangeWatchedFiles")
-
-
 LSP_MESSAGE_IMPL(PublishDiagnosticsNotification, "textDocument/publishDiagnostics")
 LSP_MESSAGE_IMPL(CompletionRequest, "textDocument/completion")
 LSP_MESSAGE_IMPL(CompletionItemResolveRequest, "completionItem/resolve")
+LSP_MESSAGE_IMPL(HoverRequest, "textDocument/hover")
+LSP_MESSAGE_IMPL(SignatureHelpRequest, "textDocument/signatureHelp")
+LSP_MESSAGE_IMPL(GotoDefinitionRequest, "textDocument/definition")
+LSP_MESSAGE_IMPL(DocumentHighlightRequest, "textDocument/documentHighlight")
+LSP_MESSAGE_IMPL(DocumentSymbolsRequest, "textDocument/documentSymbol")
+LSP_MESSAGE_IMPL(WorkspaceSymbolsRequest, "workspace/symbol")
+LSP_MESSAGE_IMPL(DocumentFormattingRequest, "textDocument/formatting")
+LSP_MESSAGE_IMPL(DocumentRangeFormattingRequest, "textDocument/rangeFormatting")
+LSP_MESSAGE_IMPL(DocumentOnTypeFormattingRequest, "textDocument/onTypeFormatting")
+LSP_MESSAGE_IMPL(RenameRequest, "textDocument/rename")
 
+
+LSP_MESSAGE_IMPL(WorkspaceEditRequest, "workspace/applyEdit")
 
 }
