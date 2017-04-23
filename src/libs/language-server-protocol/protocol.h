@@ -3,38 +3,43 @@
 #include <QVariant>
 #include <QUrl>
 #include <QVector>
-
+#include <QJsonObject>
 #include <experimental/optional>
 
 namespace LSP {
 
 
 #define LSP_MESSAGE \
-    const QByteArray & method() const Q_DECL_OVERRIDE;
+    const QString & method() const Q_DECL_OVERRIDE; \
+    QJsonObject serializeParams() const Q_DECL_OVERRIDE;
 
-
-#define LSP_MESSAGE_IMPL(Class, Method) \
-    const QByteArray & Class::method() const { \
-        static QByteArray name(QByteArrayLiteral(Method)); \
-        return name; \
-    }
+#define LSP_MESSAGE_VOID \
+    const QString & method() const Q_DECL_OVERRIDE; \
 
 
 template <typename T>
 using Optional = std::experimental::optional<T>;
 
+using number = int;
+
 struct Message {
+    virtual const QString & method() const = 0;
+    virtual QJsonObject serialize() const;
     virtual ~Message() = default;
+
+protected:
+    virtual QJsonObject serializeParams() const;
+
 };
 
 
 struct RequestMessage : public Message {
     QVariant id;
-    virtual const QByteArray & method() const = 0;
+    QJsonObject serialize() const Q_DECL_OVERRIDE;
 };
 
 struct NotificationMessage : public Message {
-    virtual const QByteArray & method() const = 0;
+    QJsonObject serialize() const Q_DECL_OVERRIDE;
 };
 
 struct ResponseError {
@@ -45,12 +50,27 @@ struct ResponseError {
 
 template <typename Result>
 struct ResponseMessage : public Message {
-    bool hasResult() const;
-    bool hasError() const;
+    bool hasResult() const {
+        return result;
+    }
+    bool hasError() const {
+        return error;
+    }
 
-    const Result* operator->() const;
-    quint16 errorCode() const;
-    QString errorMessage() const;
+    const Result* operator->() const {
+        Q_ASSERT(result);
+        return result;
+    }
+    number errorCode() const {
+        if(!error)
+            return 0;
+        return error->code;
+    }
+    QString errorMessage() const {
+        if(!error)
+            return {};
+        return error->message;
+    }
 
 private:
     Result* result = nullptr;
@@ -59,8 +79,8 @@ private:
 
 
 struct Position {
-    quint32 line;
-    quint32 character;
+    number line;
+    number character;
 };
 
 struct Range {
@@ -69,7 +89,7 @@ struct Range {
 };
 
 struct Location {
-    QUrl location;
+    QUrl uri;
     Range range;
 };
 
@@ -96,7 +116,7 @@ struct TextDocumentIdentifier {
 
 struct VersionedTextDocumentIdentifier : public TextDocumentIdentifier {
     QUrl uri;
-    quint16 version;
+    number version;
 };
 
 struct TextEdit {
@@ -110,7 +130,7 @@ struct TextDocumentEdit {
 };
 
 struct WorkspaceEdit {
-    QMap<QUrl, QVector<TextEdit>> changes;
+    //QMap<QUrl, QVector<TextEdit>> changes;
     QVector<TextDocumentEdit> documentChanges;
 };
 
@@ -118,7 +138,7 @@ struct WorkspaceEdit {
 struct TextDocumentItem {
     QUrl document;
     QByteArray languageId;
-    quint16 version;
+    number version;
     QString text;
 };
 
@@ -135,7 +155,7 @@ struct DocumentFilter {
 
 struct TextDocumentContentChangeEvent {
     Optional<Range> range;
-    Optional<quint32> rangeLength;
+    Optional<number> rangeLength;
     QString text;
 };
 
@@ -194,10 +214,6 @@ struct CancelMessage : public NotificationMessage {
     QVariant id;
 };
 
-/* C -> S */
-struct InitializeRequest : public RequestMessage {
-    LSP_MESSAGE
-};
 
 struct InitializeParams {
     QVariant processId;
@@ -209,8 +225,14 @@ struct InitializeParams {
         WSCAP_VERSIONED_DOCUMENT_CHANGES = 0x02,
     };
 
-    quint32 workspaceCapabilities;
-    quint32 documentCapabilities;
+    number workspaceCapabilities;
+    number documentCapabilities;
+};
+
+/* C -> S */
+struct InitializeRequest : public RequestMessage {
+    LSP_MESSAGE
+    InitializeParams params;
 };
 
 
@@ -221,18 +243,17 @@ struct InitializeResult {
 
 /* C -> S */
 struct InitializedMessage : public NotificationMessage {
-    LSP_MESSAGE
-    /* void */
+    LSP_MESSAGE_VOID
 };
 
 /* C -> S */
 struct ShutdownRequest : public RequestMessage {
-    LSP_MESSAGE
+    LSP_MESSAGE_VOID
 };
 
 /* C -> S */
 struct ExitMessage : public NotificationMessage {
-    LSP_MESSAGE
+    LSP_MESSAGE_VOID
 };
 
 
@@ -256,6 +277,11 @@ struct ShowLogNotification : public ShowMessageNotification {
     LSP_MESSAGE
 };
 
+
+struct MessageActionItem {
+    QString title;
+};
+
 /* S -> C */
 struct ShowMessageRequest : public NotificationMessage {
     LSP_MESSAGE
@@ -264,7 +290,7 @@ struct ShowMessageRequest : public NotificationMessage {
 
     MessageType type;
     QString message;
-    QStringList actions;
+    QVector<MessageActionItem> actions;
 };
 
 //TODO Telemetry
@@ -394,8 +420,8 @@ struct SignatureInformation {
 };
 
 struct SignatureHelp {
-    Optional<quint16> activeSignature;
-    Optional<quint8> activeParameter;
+    Optional<number> activeSignature;
+    Optional<number> activeParameter;
     QVector<SignatureInformation> signatures;
 };
 
@@ -483,7 +509,7 @@ struct WorkspaceSymbolsRequest : public RequestMessage {
 
 
 struct FormattingOptions {
-    quint8 tabSize;
+    number tabSize;
     bool insertSpaces;
 };
 
@@ -553,45 +579,7 @@ struct ApplyWorkspaceEditResponse {
     bool applied;
 };
 
-LSP_MESSAGE_IMPL(InitializeRequest, "initialize")
-LSP_MESSAGE_IMPL(InitializedMessage, "initialized")
-LSP_MESSAGE_IMPL(ShutdownRequest, "shutdown")
-LSP_MESSAGE_IMPL(ExitMessage, "exit")
 
-
-LSP_MESSAGE_IMPL(CancelMessage, "$/cancelRequest")
-
-LSP_MESSAGE_IMPL(ShowMessageNotification, "window/showMessage")
-LSP_MESSAGE_IMPL(ShowMessageRequest, "window/showMessageRequest")
-LSP_MESSAGE_IMPL(ShowLogNotification, "window/logMessage")
-
-
-LSP_MESSAGE_IMPL(DidChangeConfigurationNotification, "workspace/didChangeConfiguration")
-LSP_MESSAGE_IMPL(DidChangeWatchedFilesNotification, "workspace/didChangeWatchedFiles")
-
-LSP_MESSAGE_IMPL(DidOpenTextDocumentNotification, "textDocument/didOpen")
-LSP_MESSAGE_IMPL(DidChangeTextDocumentNotification, "textDocument/didChange")
-LSP_MESSAGE_IMPL(WillSaveTextDocumentNotification, "textDocument/willSave")
-LSP_MESSAGE_IMPL(WillSaveTextDocumentRequest, "textDocument/willSaveWaitUntil")
-LSP_MESSAGE_IMPL(DidSaveTextDocumentNotification, "textDocument/didSave")
-LSP_MESSAGE_IMPL(DidCloseTextDocumentNotification, "textDocument/didClose")
-
-
-LSP_MESSAGE_IMPL(PublishDiagnosticsNotification, "textDocument/publishDiagnostics")
-LSP_MESSAGE_IMPL(CompletionRequest, "textDocument/completion")
-LSP_MESSAGE_IMPL(CompletionItemResolveRequest, "completionItem/resolve")
-LSP_MESSAGE_IMPL(HoverRequest, "textDocument/hover")
-LSP_MESSAGE_IMPL(SignatureHelpRequest, "textDocument/signatureHelp")
-LSP_MESSAGE_IMPL(GotoDefinitionRequest, "textDocument/definition")
-LSP_MESSAGE_IMPL(DocumentHighlightRequest, "textDocument/documentHighlight")
-LSP_MESSAGE_IMPL(DocumentSymbolsRequest, "textDocument/documentSymbol")
-LSP_MESSAGE_IMPL(WorkspaceSymbolsRequest, "workspace/symbol")
-LSP_MESSAGE_IMPL(DocumentFormattingRequest, "textDocument/formatting")
-LSP_MESSAGE_IMPL(DocumentRangeFormattingRequest, "textDocument/rangeFormatting")
-LSP_MESSAGE_IMPL(DocumentOnTypeFormattingRequest, "textDocument/onTypeFormatting")
-LSP_MESSAGE_IMPL(RenameRequest, "textDocument/rename")
-
-
-LSP_MESSAGE_IMPL(WorkspaceEditRequest, "workspace/applyEdit")
+#undef LSP_MESSAGE
 
 }

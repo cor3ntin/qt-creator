@@ -1,5 +1,5 @@
 #include "languageserverprotocol.h"
-#include "base_protocol.h"
+#include "protocol.h"
 
 namespace LSP {
 

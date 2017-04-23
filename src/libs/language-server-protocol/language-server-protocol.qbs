@@ -8,13 +8,18 @@ Project {
     QtcLibrary {
         cpp.defines: base.concat(["LANGUAGESERVERPROTOCOL_LIBRARY"])
         cpp.optimization: "fast"
+        cpp.cxxLanguageVersion: "c++14"
 
         Depends { name: "Qt.core" }
 
         files: [
-            "base_protocol.h",
+            "json_serialization.cpp",
+            "json_serialization.h",
             "languageserverprotocol.cpp",
             "languageserverprotocol.h",
+            "protocol.cpp",
+            "protocol.h",
+            "protocol_fwd.h",
         ]
     }
 }
