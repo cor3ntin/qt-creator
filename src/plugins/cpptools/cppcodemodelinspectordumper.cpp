@@ -265,6 +265,9 @@ QString Utils::toString(CPlusPlus::Kind kind)
     TOKEN(T_CHAR16_T);
     TOKEN(T_CHAR32_T);
     TOKEN(T_CLASS);
+    TOKEN(T_CO_RETURN);
+    TOKEN(T_CO_WAIT);
+    TOKEN(T_CO_YIELD);
     TOKEN_AND_ALIASES(T_CONST, T___CONST/T___CONST__);
     TOKEN(T_CONST_CAST);
     TOKEN(T_CONSTEXPR);

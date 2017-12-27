@@ -47,7 +47,7 @@ const char *token_names[] = {
     ("]"), (")"), (";"), ("*"), ("*="), ("~"), ("~="),
 
     ("alignas"), ("alignof"), ("asm"), ("auto"), ("break"), ("case"), ("catch"),
-    ("class"), ("const"), ("const_cast"), ("constexpr"), ("continue"),
+    ("class"), ("co_return"), ("co_wait"), ("co_yield"), ("const"), ("const_cast"), ("constexpr"), ("continue"),
     ("decltype"), ("default"),
     ("delete"), ("do"), ("dynamic_cast"), ("else"), ("enum"),
     ("explicit"), ("export"), ("extern"), ("false"), ("for"),

@@ -413,6 +413,9 @@ bool Parser::skipUntilStatement()
             case T_BREAK:
             case T_CONTINUE:
             case T_RETURN:
+            case T_CO_RETURN:
+            case T_CO_YIELD:
+            case T_CO_WAIT:
             case T_GOTO:
             case T_TRY:
             case T_CATCH:
@@ -3251,6 +3254,8 @@ bool Parser::parseStatement(StatementAST *&node, bool blockLabeledStatement)
     case T_GOTO:
         return parseGotoStatement(node);
 
+    case T_CO_RETURN:
+    case T_CO_YIELD:
     case T_RETURN:
         return parseReturnStatement(node);
 
@@ -3362,7 +3367,7 @@ bool Parser::parseGotoStatement(StatementAST *&node)
 bool Parser::parseReturnStatement(StatementAST *&node)
 {
     DEBUG_THIS_RULE();
-    if (LA() == T_RETURN) {
+    if (LA() == T_RETURN || LA() == T_CO_RETURN || LA() == T_CO_YIELD) {
         ReturnStatementAST *ast = new (_pool) ReturnStatementAST;
         ast->return_token = consumeToken();
         if (_languageFeatures.cxx11Enabled && LA() == T_LBRACE)

@@ -20,6 +20,7 @@
 
 #include "Lexer.h"
 #include "Token.h"
+#include <cstring>
 
 namespace CPlusPlus {
 
@@ -599,6 +600,9 @@ static inline int classify7(const char *s, LanguageFeatures features)
       }
     }
   }
+  else if (features.cxx11Enabled && strncmp(s, "co_wait", 7) == 0) {
+      return T_CO_WAIT;
+  }
   else if (s[0] == 'd') {
     if (s[1] == 'e') {
       if (s[2] == 'f') {
@@ -831,6 +835,8 @@ static inline int classify8(const char *s, LanguageFeatures features)
             }
           }
         }
+      }  else if (features.cxx11Enabled && strncmp(s+2, "_yield", 6) == 0) {
+          return T_CO_YIELD;
       }
     } else if (features.cxx11Enabled && s[1] == 'h') {
         if (s[2] == 'a') {
@@ -1090,6 +1096,9 @@ static inline int classify9(const char *s, LanguageFeatures features)
             }
           }
         }
+      }
+      else if (features.cxx11Enabled && strncmp(s+2, "_return", 7) == 0) {
+          return T_CO_RETURN;
       }
     }
   }

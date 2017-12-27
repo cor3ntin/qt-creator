@@ -510,7 +510,7 @@ static QStringList languageOptions(const QString &filePath, CppTools::ProjectPar
 
     CppTools::CompilerOptionsBuilder builder(theProjectPart);
     builder.addLanguageOption(fileKind);
-
+    builder.addOptionsForLanguage(false);
     return builder.options();
 }
 

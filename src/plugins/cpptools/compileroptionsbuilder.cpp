@@ -280,6 +280,7 @@ void CompilerOptionsBuilder::addOptionsForLanguage(bool checkForBorlandExtension
         break;
     case ProjectPart::CXX17:
         opts << (gnuExtensions ? QLatin1String("-std=gnu++17") : QLatin1String("-std=c++17"));
+        opts << "-fcoroutines-ts";
         break;
     }
 
